@@ -1,0 +1,32 @@
+name: Mirror to Secondary Repo
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Push --mirror to target
+        env:
+          PAT: ${{ secrets.MIRROR_PAT }}
+        run: |
+          TARGET=https://x-access-token:${PAT}@github.com/Mesbah-Lab-UCB/Space-Microbial-Manufacturing-Is-A-Go.git
+          git remote add mirror "$TARGET"
+          git push --mirror mirror
