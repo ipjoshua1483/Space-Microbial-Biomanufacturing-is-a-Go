@@ -18,3 +18,5 @@ Then, run the following commands:
 ```conda install -c anaconda git```
 
 ```pip install -r requirements.txt```
+
+Installation on a "normal" computer should require approximately 1 hour.
