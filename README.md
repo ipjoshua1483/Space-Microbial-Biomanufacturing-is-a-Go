@@ -1,4 +1,4 @@
-# Space-Microbial-Biomanufacturing-is-a-Go
+# Space Microbial Biomanufacturing is a Go: Survivability, Usability, and Reliability for Next Generation Life Support
 
 ## System Requirements
 This codebase uses Python 3.11.13. The required packages and their corresponding versions for this repo can be found in `requirements.txt`. 
