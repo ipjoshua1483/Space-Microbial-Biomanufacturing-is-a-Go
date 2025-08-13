@@ -10,7 +10,11 @@ To set up the environment, open Anaconda Prompt and run the following command (w
 ```conda create -n <env_name> python=3.11.13```
 
 To install the required packages, first activate the environment:
+
 ```conda activate <env_name>```
 
-Then, run the following command:
+Then, run the following commands:
+
+```conda install -c anaconda git```
+
 ```pip install -r requirements.txt```
