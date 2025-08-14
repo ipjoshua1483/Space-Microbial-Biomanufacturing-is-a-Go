@@ -1,10 +1,10 @@
-name: Mirror to Secondary Repo
+name: Mirror (no workflows)
 
 on:
   push:
     branches: ["**"]
     tags: ["**"]
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 permissions:
   contents: read
@@ -13,31 +13,62 @@ jobs:
   mirror:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout (full history) without GITHUB_TOKEN creds
+      - name: "Checkout (full history), no default token"
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: false   # <— prevents github-actions[bot] creds
+          persist-credentials: false   # prevent github-actions[bot] creds
 
-      - name: Configure Git identity
+      - name: "Configure Git identity"
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Preflight
-        env:
-          PAT: ${{ secrets.MIRROR_PAT }}   # <-- make sure your secret is named exactly this
-          OWNER_REPO: Mesbah-Lab-UCB/Space-Microbial-Manufacturing-Is-A-Go
+      - name: "Install git-filter-repo"
         run: |
-          set -euxo pipefail
-          test -n "$PAT" || (echo "ERROR: Secret MIRROR_PAT is missing/empty" && exit 1)
-          TARGET="https://x-access-token:${PAT}@github.com/${OWNER_REPO}.git"
-          git remote rm mirror || true
-          git remote add mirror "$TARGET"
-          git remote -v
-          git ls-remote --heads mirror   # clear error if PAT lacks access/approval
+          python -m pip install --upgrade pip
+          python -m pip install git-filter-repo
 
-      - name: Push --mirror to target
+      - name: "Build sanitized copy (strip .github/workflows)"
+        env:
+          PAT: ${{ secrets.MIRROR_PAT }}
+          OWNER_REPO: "Mesbah-Lab-UCB/Space-Microbial-Manufacturing-Is-A-Go"
         run: |
           set -euxo pipefail
-          git push --mirror mirror
+          rm -rf sanitized
+          git clone . sanitized
+          cd sanitized
+          # Remove all .github/workflows files from history so no workflow scope is needed
+          git filter-repo --path .github/workflows --invert-paths --force
+          TARGET="https://x-access-token:${PAT}@github.com/${OWNER_REPO}.git"
+          git remote remove origin || true
+          git remote add mirror "$TARGET"
+          git ls-remote --heads mirror || true
+          git push --all mirror
+          git push --tags mirror
+
+      # Optional: keep target tidy by deleting branches/tags that no longer exist in source
+      - name: "Optional cleanup: delete remote branches/tags not in source"
+        if: always()
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          cd sanitized
+          # Remote branches not present locally
+          remote_branches=$(git ls-remote --heads mirror | awk '{print $2}' | sed 's#refs/heads/##')
+          local_branches=$(git for-each-ref --format='%(refname:short)' refs/heads)
+          for rb in $remote_branches; do
+            if ! echo "$local_branches" | grep -qx "$rb"; then
+              echo "Deleting remote branch $rb"
+              git push mirror --delete "$rb" || true
+            fi
+          done
+          # Remote tags not present locally
+          remote_tags=$(git ls-remote --tags mirror | awk '{print $2}' | sed 's#refs/tags/##' | sed 's#\^\{\}##' | sort -u)
+          local_tags=$(git tag -l)
+          for rt in $remote_tags; do
+            if ! echo "$local_tags" | grep -qx "$rt"; then
+              echo "Deleting remote tag $rt"
+              git push mirror :refs/tags/"$rt" || true
+            fi
+          done
