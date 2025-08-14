@@ -13,32 +13,29 @@ jobs:
   mirror:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout (full history)
+      - name: Checkout (full history) without GITHUB_TOKEN creds
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false   # <— prevents github-actions[bot] creds
 
       - name: Configure Git identity
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Preflight:validate secret and remote access
+      - name: Preflight: ensure secret and set remote with PAT
         env:
-          PAT: ${{ secrets.MIRROR_PAT }}
+          PAT: ${{ secrets.MIRROR_PAT }}   # <-- make sure your secret is named exactly this
+          OWNER_REPO: Mesbah-Lab-UCB/Space-Microbial-Manufacturing-Is-A-Go
         run: |
           set -euxo pipefail
-          # 1) Secret present?
           test -n "$PAT" || (echo "ERROR: Secret MIRROR_PAT is missing/empty" && exit 1)
-
-          # 2) Build target and probe access
-          TARGET="https://x-access-token:${PAT}@github.com/Mesbah-Lab-UCB/Space-Microbial-Manufacturing-Is-A-Go.git"
-          echo "Using target: ${TARGET/github.com\//github.com/}"  # prints sanitized URL
-
-          git remote add mirror "$TARGET" || git remote set-url mirror "$TARGET"
-
-          # 3) This will print a clear error if token lacks rights or needs org approval
-          git ls-remote --heads mirror
+          TARGET="https://x-access-token:${PAT}@github.com/${OWNER_REPO}.git"
+          git remote rm mirror || true
+          git remote add mirror "$TARGET"
+          git remote -v
+          git ls-remote --heads mirror   # clear error if PAT lacks access/approval
 
       - name: Push --mirror to target
         run: |
