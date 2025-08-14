@@ -23,10 +23,24 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Push --mirror to target
+      - name: Preflight:validate secret and remote access
         env:
           PAT: ${{ secrets.MIRROR_PAT }}
         run: |
-          TARGET=https://x-access-token:${PAT}@github.com/Mesbah-Lab-UCB/Space-Microbial-Manufacturing-Is-A-Go.git
-          git remote add mirror "$TARGET"
+          set -euxo pipefail
+          # 1) Secret present?
+          test -n "$PAT" || (echo "ERROR: Secret MIRROR_PAT is missing/empty" && exit 1)
+
+          # 2) Build target and probe access
+          TARGET="https://x-access-token:${PAT}@github.com/Mesbah-Lab-UCB/Space-Microbial-Manufacturing-Is-A-Go.git"
+          echo "Using target: ${TARGET/github.com\//github.com/}"  # prints sanitized URL
+
+          git remote add mirror "$TARGET" || git remote set-url mirror "$TARGET"
+
+          # 3) This will print a clear error if token lacks rights or needs org approval
+          git ls-remote --heads mirror
+
+      - name: Push --mirror to target
+        run: |
+          set -euxo pipefail
           git push --mirror mirror
