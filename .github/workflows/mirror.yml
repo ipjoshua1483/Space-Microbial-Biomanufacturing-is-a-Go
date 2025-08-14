@@ -24,7 +24,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Preflight: ensure secret and set remote with PAT
+      - name: Preflight
         env:
           PAT: ${{ secrets.MIRROR_PAT }}   # <-- make sure your secret is named exactly this
           OWNER_REPO: Mesbah-Lab-UCB/Space-Microbial-Manufacturing-Is-A-Go
