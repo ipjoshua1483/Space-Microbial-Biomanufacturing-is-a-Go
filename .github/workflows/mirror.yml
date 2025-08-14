@@ -1,4 +1,37 @@
-      - name: "Build sanitized copy (strip .github/workflows)"
+name: Mirror (no workflows)
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["**"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout (full history), no default token"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: "Configure Git identity"
+        run: |
+          set -euxo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: "Install git-filter-repo"
+        run: |
+          set -euxo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install git-filter-repo
+
+      - name: "Build sanitized copy (strip .github/workflows) and push"
         env:
           PAT: ${{ secrets.MIRROR_PAT }}
           OWNER_REPO: "Mesbah-Lab-UCB/Space-Microbial-Manufacturing-Is-A-Go"
@@ -14,10 +47,10 @@
           TARGET="https://x-access-token:${PAT}@github.com/${OWNER_REPO}.git"
           git remote add mirror "$TARGET"
 
-          # See what's on the target (you already saw 'main' there)
+          # See what's on the target (useful on first run)
           git ls-remote --heads mirror || true
-          git fetch mirror --prune
+          git fetch mirror --prune || true
 
-          # OVERWRITE the target with the sanitized history
+          # Overwrite target with sanitized history (branches + tags)
           git push mirror --all --force
           git push mirror --tags --force
